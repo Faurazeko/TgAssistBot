@@ -162,14 +162,16 @@ namespace TgAssistBot.Engines
                     try
                     {
 						_bot.SendPhotoAsync(item.Subscriber.ChatId, new InputOnlineFile(stream, path)).GetAwaiter().GetResult();
+						Logger.Log($"Successfully sended daily weather info to {item.Subscriber.ChatId} [{item.DbCity.Name}]", "Telegram");
 						break;
 					}
                     catch (Exception e)
                     {
 						Logger.Log($"Cant send daily update to {item.Subscriber.ChatId} \nERROR: {e.Message}", "Telegram API");
-                    }
+						Logger.Log($"Retry in 30 seconds...", "Telegram API");
+						Thread.Sleep(30000);
+					}
 				}
-				Logger.Log($"Successfully sended daily weather info to {item.Subscriber.ChatId} [{item.DbCity.Name}]", "Telegram");
 			}
 		}
 
