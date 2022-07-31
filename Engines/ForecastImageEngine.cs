@@ -9,7 +9,7 @@ using TgAssistBot.Models.Database;
 
 namespace TgAssistBot.Engines
 {
-    static class ImageCreationEngine
+    static class ForecastImageEngine
     {
 		//Fonts
 		static FontCollection _fontCollection = new FontCollection();
@@ -40,7 +40,7 @@ namespace TgAssistBot.Engines
 		static Color _backgroundColor = new Color(new Rgba32(54, 57, 63));
 		static Color _primaryColor = new Color(new Rgba32(185, 187, 190));
 
-		static public Image GenerateImageForForecast(WeatherMapResponse response, DbCity city)
+		static public Image GenerateImage(WeatherMapResponse response, DbCity city)
 		{
 			var sectionGap = 5;
 			var sectionWidth = ((_xEnd - _xStart) / response.WeatherList.Count()) - sectionGap;
@@ -67,17 +67,17 @@ namespace TgAssistBot.Engines
 			return image;
 		}
 
-		static public void SaveImageForForecastAsPng(DbCity city, string path)
+		static public void SaveImageAsPng(DbCity city, string path)
         {
-			var img = GenerateImageForForecast(city.LastWeather, city);
+			var img = GenerateImage(city.LastWeather, city);
 			img.SaveAsPng(path);
 		}
 
-		static public void SaveImageForForecastToStream(DbCity city, out MemoryStream stream)
+		static public void SaveImageToStream(DbCity city, out MemoryStream stream)
         {
 			stream = new MemoryStream();
 
-			var img = GenerateImageForForecast(city.LastWeather, city);
+			var img = GenerateImage(city.LastWeather, city);
 			img.Save(stream, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
 
 			stream.Position = 0;

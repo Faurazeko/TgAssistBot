@@ -10,5 +10,7 @@ namespace TgAssistBot
         public static string GetRapidApiKey() => _config.AppSettings.Settings["X-RapidAPI-Key"].Value;
 
         public static string GetTelegramToken() => _config.AppSettings.Settings["Telegram-Token"].Value;
+
+        public static string GetOpenWeatherMapApiKey() => _config.AppSettings.Settings["OpenWeatherMap-API-Key"].Value;
     }
 }

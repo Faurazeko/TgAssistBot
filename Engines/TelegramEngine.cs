@@ -12,44 +12,59 @@ namespace TgAssistBot.Engines
 {
 	class TelegramEngine
 	{
-		static private TelegramBotClient _bot = new TelegramBotClient(ConfigLoader.GetTelegramToken());
+		static private TelegramBotClient _bot;
 		static private WeatherCheckingEngine _weatherEngine = new WeatherCheckingEngine();
 		static private Repository _repository = new Repository();
-
-		public TelegramEngine()
-		{
-			_weatherEngine.DailyCityNotify += DailyCityNotifyHandler;
-
-			using var cts = new CancellationTokenSource();
-
-			var receiverOptions = new ReceiverOptions
+		static private CancellationTokenSource _cancellationTokenSource;
+		static private ReceiverOptions _tgReceiverOptions = 
+			new ReceiverOptions
 			{
 				AllowedUpdates = Array.Empty<UpdateType>() // all update types
 			};
+		static int _lastUpdateId;
+
+		static private int _maxResendAttempsCount = 3;
+
+		public TelegramEngine() => InitBot();
+
+		private void InitBot()
+		{
+			_bot = new TelegramBotClient(ConfigLoader.GetTelegramToken());
+			_cancellationTokenSource = new CancellationTokenSource();
+
+			_weatherEngine.DailyCityNotify += DailyCityNotifyHandler;
 
 			_bot.SetMyCommandsAsync(_botCommands).GetAwaiter().GetResult();
-
 			_bot.StartReceiving(
 				updateHandler: HandleUpdateAsync,
 				pollingErrorHandler: HandlePollingErrorAsync,
-				receiverOptions: receiverOptions,
-				cancellationToken: cts.Token
-
+				receiverOptions: _tgReceiverOptions,
+				cancellationToken: _cancellationTokenSource.Token
 			);
 
 			Logger.Log("Bot started!", "Telegram");
+		}
 
-			// cts.Cancel();
+		private void RestartBot()
+		{
+			_cancellationTokenSource.Cancel();
+
+			InitBot();
 		}
 
 		async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
 		{
-			if(update.Type == UpdateType.CallbackQuery)
+			if (_lastUpdateId == update.Id)
+				return;
+			else
+				_lastUpdateId = update.Id;
+
+
+			if (update.Type == UpdateType.CallbackQuery)
 			{
 				await HandleCallbackQuery(update.CallbackQuery!);
 				return;
 			}
-
 
 			if (update.Message is not { } message)
 				return;
@@ -65,9 +80,7 @@ namespace TgAssistBot.Engines
 
 			var chatId = message.Chat.Id;
 
-
 			var trimmedText = message.Text.Trim();
-
 			var commandString = trimmedText.Split(" ").First();
 
 			foreach (var cmd in _botCommands)
@@ -75,7 +88,6 @@ namespace TgAssistBot.Engines
 				if (string.Compare(cmd.Command, 0, commandString, 1, commandString.Length) == 0)
 				{
 					await cmd.Callback(message);
-
 					break;
 				}
 			}
@@ -150,42 +162,54 @@ namespace TgAssistBot.Engines
 			Logger.Log($"Sending dily update of {wikiDataCityId}", "Telegram Engine");
 
 			var path = $"{wikiDataCityId}.png";
-			//ImageCreationEngine.SaveImageForForecastAsPng(relations[0].DbCity, path);
-			ImageCreationEngine.SaveImageForForecastToStream(relations[0].DbCity, out MemoryStream stream);
+			ForecastImageEngine.SaveImageToStream(relations[0].DbCity, out MemoryStream stream);
 
 			foreach (var item in relations)
-            {
-                while (true)
-                {
+			{
+				var attempsCount = 0;
+				while (true)
+				{
 					stream.Position = 0;
 
-                    try
-                    {
+					try
+					{
 						_bot.SendPhotoAsync(item.Subscriber.ChatId, new InputOnlineFile(stream, path)).GetAwaiter().GetResult();
 						Logger.Log($"Successfully sended daily weather info to {item.Subscriber.ChatId} [{item.DbCity.Name}]", "Telegram");
+						attempsCount = 0;
 						break;
 					}
-                    catch (Exception e)
-                    {
-						Logger.Log($"Cant send daily update to {item.Subscriber.ChatId} \nERROR: {e.Message}", "Telegram API");
-						Logger.Log($"Retry in 30 seconds...", "Telegram API");
-						Thread.Sleep(30000);
+					catch (Exception)
+					{
+						Logger.Log($"Cant send daily update to {item.Subscriber.ChatId}", "Telegram API");
+
+						if(attempsCount > _maxResendAttempsCount)
+						{
+							Logger.Log($"Too many attemps! Restarting bot!", "Telegram Engine"); ;
+							RestartBot();
+							attempsCount = 0;
+						}
+						else
+						{
+							Logger.Log($"Retry in 30 seconds...", "Telegram Engine");
+							++attempsCount;
+							Thread.Sleep(30000);
+						}
 					}
 				}
 			}
 		}
 
 		private void SendWeatherDailyUnplannedInfo(string cityName, long chatId)
-        {
+		{
 			var city = _repository.GetCities().FirstOrDefault(c => c.Name == cityName);
 
 			if(city == null)
-            {
+			{
 				_bot.SendTextMessageAsync(chatId, "Сегодня без погоды!").GetAwaiter().GetResult();
 				return;
 			}
 
-			ImageCreationEngine.SaveImageForForecastToStream(city, out MemoryStream stream);
+			ForecastImageEngine.SaveImageToStream(city, out MemoryStream stream);
 
 			_bot.SendPhotoAsync(chatId, new InputOnlineFile(stream)).GetAwaiter().GetResult();
 		}
@@ -240,7 +264,7 @@ namespace TgAssistBot.Engines
 
 				Callback = async message =>
 				{
-					var trimmedText = message.Text.Trim();
+					var trimmedText = message.Text!.Trim();
 					var splittedMsg = trimmedText.Split(" ");
 
 					var cityName = string.Join(' ', splittedMsg.Skip(1));
@@ -294,7 +318,7 @@ namespace TgAssistBot.Engines
 
 				Callback = async message =>
 				{
-					var trimmedText = message.Text.Trim();
+					var trimmedText = message.Text!.Trim();
 					var splittedMsg = trimmedText.Split(" ");
 
 					var buttons = new List<InlineKeyboardButton>();
@@ -331,6 +355,53 @@ namespace TgAssistBot.Engines
 				Callback = async message =>
 				{
 					await _bot.SendTextMessageAsync(message.Chat.Id, "Да, я работаю");
+				}
+			},
+
+			new BotCommandCallback {
+				Command = "weather",
+				Description = "Получить текущую погоду в городе. Использование: /weather Moscow",
+
+				Callback = async message =>
+				{
+					async Task sendErrorMsg()
+                    {
+						await _bot.SendTextMessageAsync(message.Chat.Id, "Нету такого города, либо произошла ошибка");
+					}
+
+					var trimmedText = message.Text!.Trim();
+					var splittedMsg = trimmedText.Split(" ");
+					var cityName = string.Join(' ', splittedMsg.Skip(1));
+
+					if(string.IsNullOrEmpty(cityName) || string.IsNullOrWhiteSpace(cityName) || cityName == null)
+                    {
+						var subscribtions = _repository.GetWeatherSubscribtions().Where(e => e.Subscriber.ChatId == message.Chat.Id).ToList();
+
+						if(subscribtions.Count() <= 0 )
+                        {
+							await _bot.SendTextMessageAsync(message.Chat.Id, "Город не указан. Пример: /weather Moscow или /weather Москва");
+							return;
+                        }
+
+						cityName = subscribtions[0].DbCity.Name;
+                    }
+
+					var weatherResponse = WeatherApiEngine.GetRealtimeWeather(cityName);
+
+                    if(weatherResponse == null)
+                    {
+						await sendErrorMsg();
+						return;
+                    }
+					else if(weatherResponse.Current == null)
+                    {
+						await sendErrorMsg();
+						return;
+                    }
+
+					RealtimeWeatherImageEngine.SaveImageToStream(weatherResponse, out MemoryStream stream);
+
+					await _bot.SendPhotoAsync(message.Chat.Id, stream);
 				}
 			},
 		};

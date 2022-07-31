@@ -22,12 +22,9 @@ namespace TgAssistBot.Engines
             var request = new HttpRequestMessage
             {
                 Method = HttpMethod.Get,
-                RequestUri = new Uri($"https://community-open-weather-map.p.rapidapi.com/forecast?q={cityName}&units=metric&lang=ru"),
-                Headers =
-                {
-                    { "X-RapidAPI-Key", ConfigLoader.GetRapidApiKey() },
-                    { "X-RapidAPI-Host", "community-open-weather-map.p.rapidapi.com" },
-                },
+                RequestUri = 
+                new Uri($"https://api.openweathermap.org/data/2.5/forecast?q={cityName}&units=metric&lang=ru" +
+                $"&appid={ConfigLoader.GetOpenWeatherMapApiKey()}")
             };
 
             using (var response = client.Send(request))

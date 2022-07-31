@@ -17,14 +17,22 @@ namespace TgAssistBot.Engines
 					{ "X-RapidAPI-Host", "weatherapi-com.p.rapidapi.com" },
 				},
 			};
-			using (var response = client.Send(request))
-			{
-				response.EnsureSuccessStatusCode();
-				var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 
-				var obj = System.Text.Json.JsonSerializer.Deserialize<WeatherApiResponse>(body);
-				return obj!;
+            try
+            {
+				using (var response = client.Send(request))
+				{
+					response.EnsureSuccessStatusCode();
+					var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+					var obj = System.Text.Json.JsonSerializer.Deserialize<WeatherApiResponse>(body);
+					return obj!;
+				}
 			}
+            catch (Exception)
+            {
+				return null;
+            }
 		}
     }
 }

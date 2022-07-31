@@ -11,7 +11,9 @@
 *.sln.docstates
 
 configuration.config
-tgAssistBot.db
+*.db
+forecastResponse.txt
+realtimeResponse.txt
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
