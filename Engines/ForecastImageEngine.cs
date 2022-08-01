@@ -17,6 +17,7 @@ namespace TgAssistBot.Engines
 
 		//Image settings
 		static int _width = 1720;
+		static int _halfWidth = _width / 2;
 		static int _height = 720;
 
 		//Brush settings
@@ -90,7 +91,7 @@ namespace TgAssistBot.Engines
 				{
 					HorizontalAlignment = HorizontalAlignment.Center,
 					WrappingLength = _width,
-					Origin = new PointF(_width / 2, 0),
+					Origin = new PointF(_halfWidth, 0),
 				}, text, _primaryColor);
 		}
 
@@ -108,10 +109,10 @@ namespace TgAssistBot.Engines
 		static void DrawLegend(IImageProcessingContext img)
         {
 			img.FillPolygon(_precipitationColor,
-				new PointF((_width / 2) + 300, 5),
-				new PointF((_width / 2) + 350, 5),
-				new PointF((_width / 2) + 350, 55),
-				new PointF((_width / 2) + 300, 55)
+				new PointF(_halfWidth + 300, 5),
+				new PointF(_halfWidth + 350, 5),
+				new PointF(_halfWidth + 350, 55),
+				new PointF(_halfWidth + 300, 55)
 				);
 
 			img.DrawText(
@@ -119,14 +120,14 @@ namespace TgAssistBot.Engines
 				{
 					HorizontalAlignment = HorizontalAlignment.Left,
 					WrappingLength = _width,
-					Origin = new PointF((_width / 2) + 360, 14),
+					Origin = new PointF(_halfWidth + 360, 14),
 				}, "- Осадки", _primaryColor);
 
 			img.FillPolygon(_tempColor,
-				new PointF((_width / 2) + 500, 5),
-				new PointF((_width / 2) + 550, 5),
-				new PointF((_width / 2) + 550, 55),
-				new PointF((_width / 2) + 500, 55)
+				new PointF(_halfWidth + 500, 5),
+				new PointF(_halfWidth + 550, 5),
+				new PointF(_halfWidth + 550, 55),
+				new PointF(_halfWidth + 500, 55)
 				);
 
 			img.DrawText(
@@ -134,7 +135,7 @@ namespace TgAssistBot.Engines
 				{
 					HorizontalAlignment = HorizontalAlignment.Left,
 					WrappingLength = _width,
-					Origin = new PointF((_width / 2) + 560, 14),
+					Origin = new PointF(_halfWidth + 560, 14),
 				}, "- Температура", _primaryColor);
 		}
 
@@ -160,9 +161,6 @@ namespace TgAssistBot.Engines
 			};
 
 			var percents = 100;
-
-			//smallOptions.Origin = new PointF(_widthOffset * 1.55f, _yStart - smallFont.Size * 1.5f);
-			//img.DrawText(smallOptions, "Вероятность осадков", _primaryColor);
 
 			for (float i = _yStart; i <= _yEnd; i += (_percentInPixelsHeight * 10))
 			{

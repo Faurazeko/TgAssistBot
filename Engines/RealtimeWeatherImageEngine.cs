@@ -101,6 +101,7 @@ namespace TgAssistBot.Engines
 			var topOffset = (3 * _fontSize) + _sidesOffset;
 			var tempTableHeight = 5 * _fontSize;
 
+			// draw frame
 			img.DrawPolygon(_precipitationColor, _brushThickness, 
 				new PointF(_sidesOffset - _brushThickness, topOffset),
 				new PointF(rectWidth, topOffset),
@@ -179,6 +180,7 @@ namespace TgAssistBot.Engines
 			var xLeftPoint = 370 - xOffset + _sidesOffset;
 			var xRightPoint = xLeftPoint + textSize.Width + (xOffset * 2);
 
+			//draw uv color rect
 			img.FillPolygon(uvColor,
 				new PointF(xLeftPoint, _sidesOffset + _fontSize * 4.25f),
 				new PointF(xRightPoint, _sidesOffset + _fontSize * 4.25f),
@@ -197,6 +199,7 @@ namespace TgAssistBot.Engines
 
 			img.DrawText(uvTextOptions, descText, _primaryColor);
 
+			//draw frame
 			img.DrawPolygon(_precipitationColor, _brushThickness,
 				new PointF(_sidesOffset + 300, _sidesOffset + _fontSize * 3),
 				new PointF(_sidesOffset + 600, _sidesOffset + _fontSize * 3),
@@ -269,6 +272,7 @@ namespace TgAssistBot.Engines
 			var yTopPos = _sidesOffset + (_fontSize * 8) + 20;
 			var yBottomPos = yTopPos + textHeight * 1.3f;
 
+			//draw frame
 			img.DrawPolygon(_precipitationColor, _brushThickness,
 				new PointF(_sidesOffset - _brushThickness, yTopPos),
 				new PointF(300, yTopPos),

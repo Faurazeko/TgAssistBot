@@ -23,8 +23,6 @@ namespace TgAssistBot.Engines
 			};
 		static int _lastUpdateId;
 
-		static private int _maxResendAttempsCount = 3;
-
 		public TelegramEngine() => InitBot();
 
 		private void InitBot()
@@ -166,36 +164,10 @@ namespace TgAssistBot.Engines
 
 			foreach (var item in relations)
 			{
-				var attempsCount = 0;
-				while (true)
-				{
-					stream.Position = 0;
+				stream.Position = 0;
+				_bot.SendPhotoAsync(item.Subscriber.ChatId, new InputOnlineFile(stream, path)).GetAwaiter().GetResult();
 
-					try
-					{
-						_bot.SendPhotoAsync(item.Subscriber.ChatId, new InputOnlineFile(stream, path)).GetAwaiter().GetResult();
-						Logger.Log($"Successfully sended daily weather info to {item.Subscriber.ChatId} [{item.DbCity.Name}]", "Telegram");
-						attempsCount = 0;
-						break;
-					}
-					catch (Exception)
-					{
-						Logger.Log($"Cant send daily update to {item.Subscriber.ChatId}", "Telegram API");
-
-						if(attempsCount > _maxResendAttempsCount)
-						{
-							Logger.Log($"Too many attemps! Restarting bot!", "Telegram Engine"); ;
-							RestartBot();
-							attempsCount = 0;
-						}
-						else
-						{
-							Logger.Log($"Retry in 30 seconds...", "Telegram Engine");
-							++attempsCount;
-							Thread.Sleep(30000);
-						}
-					}
-				}
+				Logger.Log($"Successfully sended daily weather info to {item.Subscriber.ChatId} [{item.DbCity.Name}]", "Telegram");
 			}
 		}
 

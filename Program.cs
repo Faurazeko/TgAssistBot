@@ -32,7 +32,6 @@ namespace TgAssistBot
             //RealtimeWeatherImageEngine.SaveImageAsPng(response!, $"{desktopPath}/img2.png");
             #endregion
 
-
             #region Primary
             var tgEngine = new TelegramEngine();
 
