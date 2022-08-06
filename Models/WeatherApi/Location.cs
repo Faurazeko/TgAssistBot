@@ -16,18 +16,18 @@ namespace TgAssistBot.Models.WeatherApi
         public string Country { get; set; }
 
         [JsonPropertyName("lat")]
-        public double Lat { get; set; }
+        public double Latitude { get; set; }
 
         [JsonPropertyName("lon")]
-        public double Lon { get; set; }
+        public double Longitude { get; set; }
 
         [JsonPropertyName("tz_id")]
-        public string TzId { get; set; }
+        public string TimeZoneId { get; set; }
 
         [JsonPropertyName("localtime_epoch")]
-        public int LocaltimeEpoch { get; set; }
+        public int LocalTimeEpoch{ get; set; }
 
         [JsonPropertyName("localtime")]
-        public string Localtime { get; set; }
+        public string LocalTime { get; set; }
     }
 }

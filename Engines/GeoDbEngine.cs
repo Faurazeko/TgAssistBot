@@ -8,16 +8,8 @@ namespace TgAssistBot.Engines
         public static GeoDbGetPlacesResponse GetPlacesByName(string placeName)
         {
 			var client = new HttpClient();
-			var request = new HttpRequestMessage
-			{
-				Method = HttpMethod.Get,
-				RequestUri = new Uri($"https://wft-geo-db.p.rapidapi.com/v1/geo/cities?namePrefix={placeName}"),
-				Headers =
-				{
-					{ "X-RapidAPI-Key", ConfigLoader.GetRapidApiKey() },
-					{ "X-RapidAPI-Host", "wft-geo-db.p.rapidapi.com" },
-				},
-			};
+			var request = GetRequest($"https://wft-geo-db.p.rapidapi.com/v1/geo/cities?namePrefix={placeName}");
+
 			using (var response = client.Send(request))
 			{
 				response.EnsureSuccessStatusCode();
@@ -60,28 +52,35 @@ namespace TgAssistBot.Engines
 		public static DateTimeOffset GetCurrentCityTime(string wikiDataCityId)
         {
 			var client = new HttpClient();
-			var request = new HttpRequestMessage
-			{
-				Method = HttpMethod.Get,
-				RequestUri = new Uri($"https://wft-geo-db.p.rapidapi.com/v1/geo/cities/{wikiDataCityId}/dateTime"),
-				Headers =
-				{
-					{ "X-RapidAPI-Key", ConfigLoader.GetRapidApiKey() },
-					{ "X-RapidAPI-Host", "wft-geo-db.p.rapidapi.com" },
-				},
-			};
+			var request = GetRequest($"https://wft-geo-db.p.rapidapi.com/v1/geo/cities/{wikiDataCityId}/dateTime");
+
 			using (var response = client.Send(request))
 			{
 				response.EnsureSuccessStatusCode();
 				var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
 				var obj = System.Text.Json.JsonSerializer.Deserialize<MidnightTimeResponse>(body);
 
-
 				if (obj == null)
 					throw new Exception("Bad response from GeoDbAPI");
 
 				return DateTimeOffset.Parse(obj.Data);
 			}
+		}
+
+		private static HttpRequestMessage GetRequest(string url)
+        {
+			var request = new HttpRequestMessage
+			{
+				Method = HttpMethod.Get,
+				RequestUri = new Uri(url),
+				Headers =
+				{
+					{ "X-RapidAPI-Key", ConfigLoader.GetRapidApiKey() },
+					{ "X-RapidAPI-Host", "wft-geo-db.p.rapidapi.com" },
+				},
+			};
+
+			return request;
 		}
 
 		public class MidnightTimeResponse

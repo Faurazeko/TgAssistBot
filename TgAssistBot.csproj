@@ -31,6 +31,12 @@
     <None Update="ROBOTO.ttf">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="TestResponses\forecastResponse.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="TestResponses\realtimeResponse.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="tgAssistBot.db">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

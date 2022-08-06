@@ -15,6 +15,11 @@ namespace TgAssistBot.Engines
 		static FontCollection _fontCollection = new FontCollection();
 		static FontFamily _fontFamily = _fontCollection.Add("ROBOTO.ttf");
 
+		static Font _font50 = _fontFamily.CreateFont(50);
+		static Font _font30 = _fontFamily.CreateFont(30);
+		static Font _font16 = _fontFamily.CreateFont(16);
+		static Font _font14 = _fontFamily.CreateFont(14);
+
 		//Image settings
 		static int _width = 1720;
 		static int _halfWidth = _width / 2;
@@ -87,7 +92,7 @@ namespace TgAssistBot.Engines
 		static void DrawCenterText(IImageProcessingContext img, string text)
         {
 			img.DrawText(
-				new TextOptions(_fontFamily.CreateFont(50))
+				new TextOptions(_font50)
 				{
 					HorizontalAlignment = HorizontalAlignment.Center,
 					WrappingLength = _width,
@@ -98,7 +103,7 @@ namespace TgAssistBot.Engines
 		static void DrawCityName(IImageProcessingContext img, string text)
 		{
 			img.DrawText(
-				new TextOptions(_fontFamily.CreateFont(50))
+				new TextOptions(_font50)
 				{
 					HorizontalAlignment = HorizontalAlignment.Left,
 					WrappingLength = _width,
@@ -116,7 +121,7 @@ namespace TgAssistBot.Engines
 				);
 
 			img.DrawText(
-				new TextOptions(_fontFamily.CreateFont(30))
+				new TextOptions(_font30)
 				{
 					HorizontalAlignment = HorizontalAlignment.Left,
 					WrappingLength = _width,
@@ -131,7 +136,7 @@ namespace TgAssistBot.Engines
 				);
 
 			img.DrawText(
-				new TextOptions(_fontFamily.CreateFont(30))
+				new TextOptions(_font30)
 				{
 					HorizontalAlignment = HorizontalAlignment.Left,
 					WrappingLength = _width,
@@ -151,11 +156,9 @@ namespace TgAssistBot.Engines
 
 		static void DrawHorizontalMeasures(IImageProcessingContext img)
         {
-			Font smallFont = _fontFamily.CreateFont(16);
-
-			TextOptions smallOptions = new(smallFont)
+			TextOptions smallOptions = new(_font16)
 			{
-				Font = smallFont,
+				Font = _font16,
 				HorizontalAlignment = HorizontalAlignment.Center,
 				WrappingLength = _width
 			};
@@ -164,7 +167,7 @@ namespace TgAssistBot.Engines
 
 			for (float i = _yStart; i <= _yEnd; i += (_percentInPixelsHeight * 10))
 			{
-				smallOptions.Origin = new PointF(_widthOffset / 2, i - (smallFont.Size / 2));
+				smallOptions.Origin = new PointF(_widthOffset / 2, i - (_font16.Size / 2));
 
 				img.DrawText(smallOptions, $"{percents} %", _primaryColor);
 
@@ -177,8 +180,6 @@ namespace TgAssistBot.Engines
 
 		static void DrawRainChanceInfo(IImageProcessingContext img, int sectionWidth, int sectionGap, List<WeatherList> weatherList, DbCity city)
         {
-			Font font = _fontFamily.CreateFont(14);
-
 			void _drawNewDayInfo(DateTime forecastDateTime, int xPos)
             {
 				img.DrawPolygon(new Color(new Rgba32(255, 255, 255, 100)), sectionGap,
@@ -186,7 +187,7 @@ namespace TgAssistBot.Engines
 					new PointF(xPos - 3, _yStart)
 					);
 
-				img.DrawText(forecastDateTime.ToString("dd.MM"), font, _primaryColor, new PointF(xPos, _yEnd * 1.01f));
+				img.DrawText(forecastDateTime.ToString("dd.MM"), _font14, _primaryColor, new PointF(xPos, _yEnd * 1.01f));
 			}
 
 			void _drawRainPolygon(int xPos, float rainHeight)
@@ -215,7 +216,7 @@ namespace TgAssistBot.Engines
 				if (index % 8 == 0)
 					_drawNewDayInfo(forecastDateTime, i);
 
-				img.DrawText(forecastDateTime.ToString("HH:mm"), font, _primaryColor, new PointF(i, _yEnd * 1.03f));
+				img.DrawText(forecastDateTime.ToString("HH:mm"), _font14, _primaryColor, new PointF(i, _yEnd * 1.03f));
 
 				index++;
 			}

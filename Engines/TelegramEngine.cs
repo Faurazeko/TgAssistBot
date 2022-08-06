@@ -6,15 +6,17 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InputFiles;
 using Telegram.Bot.Types.ReplyMarkups;
+using TgAssistBot.Data;
 using TgAssistBot.Models.Telegram;
 
 namespace TgAssistBot.Engines
 {
-	class TelegramEngine
+    class TelegramEngine
 	{
 		static private TelegramBotClient _bot;
-		static private WeatherCheckingEngine _weatherEngine = new WeatherCheckingEngine();
-		static private Repository _repository = new Repository();
+		static private WeatherCheckingEngine _weatherEngine = new();
+		static private SubscribtionManager _subscribtionManager = new();
+		static private Repository _repository = new();
 		static private CancellationTokenSource _cancellationTokenSource;
 		static private ReceiverOptions _tgReceiverOptions = 
 			new ReceiverOptions
@@ -40,7 +42,7 @@ namespace TgAssistBot.Engines
 				cancellationToken: _cancellationTokenSource.Token
 			);
 
-			Logger.Log("Bot started!", "Telegram");
+			Logger.Log("Bot started!");
 		}
 
 		private void RestartBot()
@@ -72,8 +74,8 @@ namespace TgAssistBot.Engines
 
 			if (update.Message.Chat.Type != ChatType.Private)
 				return;
-			
-			Logger.TgMsgLog(message);
+
+			LogTgMsg(message);
 			UpdateSubscriberInfo(message);
 
 			var chatId = message.Chat.Id;
@@ -89,6 +91,28 @@ namespace TgAssistBot.Engines
 					break;
 				}
 			}
+		}
+
+		public static void LogTgMsg(Message message)
+		{
+			var logMsg = "";
+
+			if (message.From.Username != null)
+				logMsg += $"@{message.From.Username} ";
+
+			if (message.From.FirstName.Length > 0)
+			{
+				logMsg += $"({message.From.FirstName}";
+
+				if (message.From.LastName != null)
+					logMsg += message.From.LastName;
+
+				logMsg += ")";
+			}
+
+			logMsg += $" - \"{message.Text}\";";
+
+			Logger.Log(logMsg);
 		}
 
 		Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
@@ -124,7 +148,7 @@ namespace TgAssistBot.Engines
 
 					await _bot.SendTextMessageAsync(chatId, $"Сейчас подпишу тебя на {cityName} (Погода)");
 					
-					var success = _weatherEngine.CreateSubscribtion(chatId, cityId, cityName);
+					var success = _subscribtionManager.CreateSubscribtion(chatId, cityId, cityName);
 
 					if (success)
 					{
@@ -143,7 +167,7 @@ namespace TgAssistBot.Engines
 
 				case "weather_unsubscribe":
 					var cityWikiDataId = string.Join(' ', splittedData.Skip(1));
-					_weatherEngine.DeleteSubscribtion(chatId, cityWikiDataId);
+					_subscribtionManager.DeleteSubscribtion(chatId, cityWikiDataId);
 					await _bot.SendTextMessageAsync(chatId, $"Все, отписал.");
 					break;
 
@@ -155,9 +179,9 @@ namespace TgAssistBot.Engines
 
 		private void DailyCityNotifyHandler(string wikiDataCityId)
 		{
-			var relations = _repository.GetWeatherSubscribtions().Where(s => s.DbCity.WikiDataCityId == wikiDataCityId).ToList();
+			var relations = _repository.GetWeatherSubscribtions(s => s.DbCity.WikiDataCityId == wikiDataCityId).ToList();
 
-			Logger.Log($"Sending dily update of {wikiDataCityId}", "Telegram Engine");
+			Logger.Log($"Sending dily update of {wikiDataCityId}");
 
 			var path = $"{wikiDataCityId}.png";
 			ForecastImageEngine.SaveImageToStream(relations[0].DbCity, out MemoryStream stream);
@@ -167,13 +191,13 @@ namespace TgAssistBot.Engines
 				stream.Position = 0;
 				_bot.SendPhotoAsync(item.Subscriber.ChatId, new InputOnlineFile(stream, path)).GetAwaiter().GetResult();
 
-				Logger.Log($"Successfully sended daily weather info to {item.Subscriber.ChatId} [{item.DbCity.Name}]", "Telegram");
+				Logger.Log($"Successfully sended daily weather info to {item.Subscriber.ChatId} [{item.DbCity.Name}]");
 			}
 		}
 
 		private void SendWeatherDailyUnplannedInfo(string cityName, long chatId)
 		{
-			var city = _repository.GetCities().FirstOrDefault(c => c.Name == cityName);
+			var city = _repository.GetCity(c => c.Name == cityName);
 
 			if(city == null)
 			{
@@ -188,7 +212,7 @@ namespace TgAssistBot.Engines
 
 		private static void UpdateSubscriberInfo(Message message)
 		{
-			var subscriber = _repository.GetSubscribers().Where(s => s.ChatId == message.Chat.Id).FirstOrDefault();
+			var subscriber = _repository.GetSubscribers(s => s.ChatId == message.Chat.Id).FirstOrDefault();
 
 			if (subscriber == null)
 				return;
@@ -295,7 +319,7 @@ namespace TgAssistBot.Engines
 
 					var buttons = new List<InlineKeyboardButton>();
 
-					var relations = _repository.GetWeatherSubscribtions().Where(r => r.Subscriber.ChatId == message.Chat.Id).ToList();
+					var relations = _repository.GetWeatherSubscribtions(r => r.Subscriber.ChatId == message.Chat.Id).ToList();
 
 					foreach (var item in relations)
 					{
@@ -347,7 +371,7 @@ namespace TgAssistBot.Engines
 
 					if(string.IsNullOrEmpty(cityName) || string.IsNullOrWhiteSpace(cityName) || cityName == null)
                     {
-						var subscribtions = _repository.GetWeatherSubscribtions().Where(e => e.Subscriber.ChatId == message.Chat.Id).ToList();
+						var subscribtions = _repository.GetWeatherSubscribtions(e => e.Subscriber.ChatId == message.Chat.Id).ToList();
 
 						if(subscribtions.Count() <= 0 )
                         {

@@ -4,38 +4,23 @@ namespace TgAssistBot
 {
     class Logger
     {
-		public static void Log(string message, string prefix = "INFO")
-		{
-			var logMsg = GetLogMsg(prefix);
-			logMsg += message;
+        public static void Log(string message)
+        {
+            var prefix = Utils.GetLastNameOfCallingClassWithSpaces();
 
-			ExecuteLog(logMsg);
-		}
+            Log(message, prefix);
+        }
 
-		public static void TgMsgLog(Message message)
-		{
-			var logMsg = GetLogMsg("Telegram");
+        public static void Log(string message, string prefix)
+        {
+            var logMsg = GetLogMsgBase(prefix);
+            logMsg += message;
 
-			if (message.From.Username != null)
-				logMsg += $"@{message.From.Username} ";
+            ExecuteLog(logMsg);
+        }
 
-			if (message.From.FirstName.Length > 0)
-			{
-				logMsg += $"({message.From.FirstName}";
+        private static void ExecuteLog(string logMsg) => Console.WriteLine(logMsg);
 
-				if (message.From.LastName != null)
-					logMsg += message.From.LastName;
-
-				logMsg += ")";
-			}
-
-			logMsg += $" - \"{message.Text}\";";
-
-			ExecuteLog(logMsg);
-		}
-
-		private static void ExecuteLog(string logMsg) => Console.WriteLine(logMsg);
-
-		private static string GetLogMsg(string prefix) => $"[{DateTime.Now}] ({prefix}) => ";
-	}
+        private static string GetLogMsgBase(string prefix) => $"[{DateTime.Now}] ({prefix}) => ";
+    }
 }

@@ -10,6 +10,6 @@ namespace TgAssistBot.Models.WeatherApi
         public Location Location { get; set; }
 
         [JsonPropertyName("current")]
-        public Current Current { get; set; }
+        public CurrentWeather Current { get; set; }
     }
 }

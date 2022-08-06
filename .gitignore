@@ -3,17 +3,19 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+############
+###CUSTOM###
+############
+configuration.config
+*.db
+TestResponses/
+
 # User-specific files
 *.rsuser
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
-
-configuration.config
-*.db
-forecastResponse.txt
-realtimeResponse.txt
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

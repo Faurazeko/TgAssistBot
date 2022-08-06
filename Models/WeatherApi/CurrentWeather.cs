@@ -4,7 +4,7 @@
 
 namespace TgAssistBot.Models.WeatherApi
 {
-    public class Current
+    public class CurrentWeather
     {
         [JsonPropertyName("last_updated_epoch")]
         public int LastUpdatedEpoch { get; set; }

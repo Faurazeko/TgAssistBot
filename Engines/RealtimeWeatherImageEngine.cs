@@ -73,7 +73,7 @@ namespace TgAssistBot.Engines
 			var dtFormat = "dd.MM HH:mm";
 
 			var text =
-			$"Текущее время: {DateTime.Parse(response.Location.Localtime).ToString(dtFormat)}\n" +
+			$"Текущее время: {DateTime.Parse(response.Location.LocalTime).ToString(dtFormat)}\n" +
 			$"Последнее обновление: {DateTime.Parse(response.Current.LastUpdated).ToString(dtFormat)}";
 
 			img.DrawText(
@@ -95,7 +95,7 @@ namespace TgAssistBot.Engines
 			img.DrawText(textOptions, text, _primaryColor);
 		}
 
-		static private void DrawTemperatureInfo(IImageProcessingContext img, Current weather)
+		static private void DrawTemperatureInfo(IImageProcessingContext img, CurrentWeather weather)
 		{
 			var rectWidth = 300;
 			var topOffset = (3 * _fontSize) + _sidesOffset;
@@ -131,7 +131,7 @@ namespace TgAssistBot.Engines
 				}, $"Реальная: {weather.TempC}° \nПо ощущениям: {weather.FeelslikeC}°", _primaryColor);
 		}
 
-		static private void DrawUvIndexInfo(IImageProcessingContext img, Current weather)
+		static private void DrawUvIndexInfo(IImageProcessingContext img, CurrentWeather weather)
 		{
 			var descText = $"";
 			var colorText = "";
@@ -231,7 +231,7 @@ namespace TgAssistBot.Engines
 				}, colorText, textColor);
 		}
 
-		static private void DrawOtherInfo(IImageProcessingContext img, Current weather)
+		static private void DrawOtherInfo(IImageProcessingContext img, CurrentWeather weather)
 		{
 			var font20 = _fontFamily.CreateFont(20);
 
