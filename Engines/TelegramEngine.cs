@@ -4,6 +4,7 @@ using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.InputFiles;
 using Telegram.Bot.Types.ReplyMarkups;
 using TgAssistBot.Data;
@@ -11,12 +12,11 @@ using TgAssistBot.Models.Telegram;
 
 namespace TgAssistBot.Engines
 {
-    class TelegramEngine
+	class TelegramEngine
 	{
 		static private TelegramBotClient _bot;
 		static private WeatherCheckingEngine _weatherEngine = new();
 		static private SubscribtionManager _subscribtionManager = new();
-		static private Repository _repository = new();
 		static private CancellationTokenSource _cancellationTokenSource;
 		static private ReceiverOptions _tgReceiverOptions = 
 			new ReceiverOptions
@@ -24,6 +24,7 @@ namespace TgAssistBot.Engines
 				AllowedUpdates = Array.Empty<UpdateType>() // all update types
 			};
 		static int _lastUpdateId;
+		static DateTime InitUtcDateTime = DateTime.UtcNow;
 
 		public TelegramEngine() => InitBot();
 
@@ -59,11 +60,27 @@ namespace TgAssistBot.Engines
 			else
 				_lastUpdateId = update.Id;
 
-
-			if (update.Type == UpdateType.CallbackQuery)
+			switch (update.Type)
 			{
-				await HandleCallbackQuery(update.CallbackQuery!);
-				return;
+				case UpdateType.CallbackQuery:
+                    await HandleCallbackQuery(update.CallbackQuery!);
+                    return;
+				case UpdateType.InlineQuery:
+                case UpdateType.ChosenInlineResult:
+                case UpdateType.EditedMessage:
+				case UpdateType.ChannelPost:
+				case UpdateType.EditedChannelPost:
+				case UpdateType.ShippingQuery:
+				case UpdateType.PreCheckoutQuery:
+				case UpdateType.Poll:
+				case UpdateType.PollAnswer:
+				case UpdateType.MyChatMember:
+				case UpdateType.ChatMember:
+				case UpdateType.ChatJoinRequest:
+                case UpdateType.Unknown:
+                case UpdateType.Message:
+                default:
+					break;
 			}
 
 			if (update.Message is not { } message)
@@ -148,21 +165,30 @@ namespace TgAssistBot.Engines
 
 					await _bot.SendTextMessageAsync(chatId, $"Сейчас подпишу тебя на {cityName} (Погода)");
 					
-					var success = _subscribtionManager.CreateSubscribtion(chatId, cityId, cityName);
+					var statusCode = _subscribtionManager.CreateSubscribtion(chatId, cityId, cityName);
 
-					if (success)
-					{
-						await _bot.SendTextMessageAsync(chatId, $"Все! Подписал! Теперь ты будешь получать уведомления о погоде, поздравляю!");
-						await _bot.SendTextMessageAsync(chatId, $"Кстати о погоде...");
-						SendWeatherDailyUnplannedInfo(cityName, chatId);
-					}
-					else
-					{
-						await _bot.SendTextMessageAsync(chatId, $"Достигнут лимит подписок на погоду. " +
-							$"Сначала отпишись от одного города, потом подпишемся на этот.\n\n" +
-							$"Чтобы посмотреть список подписок и управлять ими, напиши /getweathersubscribtions");
-					}
-
+                    switch (statusCode)
+                    {
+                        case SubscribtionManager.CreateSubStatusCode.Created:
+							await _bot.SendTextMessageAsync(chatId, $"Все! Подписал! Теперь ты будешь получать уведомления о погоде, поздравляю!");
+							await _bot.SendTextMessageAsync(chatId, $"Кстати о погоде...");
+							SendWeatherDailyUnplannedInfo(cityName, chatId);
+							break;
+                        case SubscribtionManager.CreateSubStatusCode.LimitReached:
+							await _bot.SendTextMessageAsync(chatId, $"Достигнут лимит подписок на погоду. " +
+								$"Сначала отпишись от одного города, потом подпишемся на этот.\n\n" +
+								$"Чтобы посмотреть список подписок и управлять ими, напиши /getweathersubscribtions");
+							break;
+                        case SubscribtionManager.CreateSubStatusCode.InternalError:
+							await _bot.SendTextMessageAsync(chatId, "Произошла ошибка! :( Попробуй еще раз попозже");
+							break;
+                        case SubscribtionManager.CreateSubStatusCode.AlreadyExists:
+							await _bot.SendTextMessageAsync(chatId, "Ты уже подписан на этот город!");
+							break;
+                        default:
+							await _bot.SendTextMessageAsync(chatId, "Произошла неизвестная ошибка");
+							break;
+                    }
 					break;
 
 				case "weather_unsubscribe":
@@ -179,25 +205,28 @@ namespace TgAssistBot.Engines
 
 		private void DailyCityNotifyHandler(string wikiDataCityId)
 		{
-			var relations = _repository.GetWeatherSubscribtions(s => s.DbCity.WikiDataCityId == wikiDataCityId).ToList();
-
-			Logger.Log($"Sending dily update of {wikiDataCityId}");
-
-			var path = $"{wikiDataCityId}.png";
-			ForecastImageEngine.SaveImageToStream(relations[0].DbCity, out MemoryStream stream);
-
-			foreach (var item in relations)
+			using (var repository = new Repository())
 			{
-				stream.Position = 0;
-				_bot.SendPhotoAsync(item.Subscriber.ChatId, new InputOnlineFile(stream, path)).GetAwaiter().GetResult();
+                var relations = repository.GetWeatherSubscribtions(s => s.DbCity.WikiDataCityId == wikiDataCityId).ToList();
 
-				Logger.Log($"Successfully sended daily weather info to {item.Subscriber.ChatId} [{item.DbCity.Name}]");
-			}
+                var dbCity = repository.GetCity(e => e.WikiDataCityId == wikiDataCityId);
+
+                ForecastImageEngine.SaveImageToStream(relations[0].DbCity, out MemoryStream stream);
+
+                foreach (var item in relations)
+                {
+                    stream.Position = 0;
+                    _bot.SendPhotoAsync(item.Subscriber.ChatId, new InputOnlineFile(stream)).GetAwaiter().GetResult();
+
+                    Logger.Log($"Successfully sended daily weather info to {item.Subscriber.ChatId} [{item.DbCity.Name}]");
+                }
+            }
+
 		}
 
 		private void SendWeatherDailyUnplannedInfo(string cityName, long chatId)
 		{
-			var city = _repository.GetCity(c => c.Name == cityName);
+			var city = new Repository().GetCity(c => c.Name == cityName);
 
 			if(city == null)
 			{
@@ -212,29 +241,32 @@ namespace TgAssistBot.Engines
 
 		private static void UpdateSubscriberInfo(Message message)
 		{
-			var subscriber = _repository.GetSubscribers(s => s.ChatId == message.Chat.Id).FirstOrDefault();
+			using (var repository = new Repository())
+			{
+                var subscriber = repository.GetSubscribers(s => s.ChatId == message.Chat.Id).FirstOrDefault();
 
-			if (subscriber == null)
-				return;
+                if (subscriber == null)
+                    return;
 
-			var username = message.Chat.Username;
+                var username = message.Chat.Username;
 
-			if ((string.IsNullOrEmpty(username) || string.IsNullOrWhiteSpace(username)) || username == null)
-				username = "UNKNOWN :(";
+                if ((string.IsNullOrEmpty(username) || string.IsNullOrWhiteSpace(username)) || username == null)
+                    username = "UNKNOWN :(";
 
-			subscriber.TelegramUsername = username;
+                subscriber.TelegramUsername = username;
 
-			var name = message.Chat.FirstName;
+                var name = message.Chat.FirstName;
 
-			if (!string.IsNullOrEmpty(message.Chat.LastName))
-				name += $" {message.Chat.LastName}";
+                if (!string.IsNullOrEmpty(message.Chat.LastName))
+                    name += $" {message.Chat.LastName}";
 
-			if (string.IsNullOrWhiteSpace(name) || string.IsNullOrEmpty(name))
-				name = "UNKNOWN :(";
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrEmpty(name))
+                    name = "UNKNOWN :(";
 
-			subscriber.TelegramName = name;
+                subscriber.TelegramName = name;
 
-			_repository.SaveChanges();
+                repository.SaveChanges();
+            }
 		}
 
 		static private BotCommandCallback[] _botCommands =
@@ -245,7 +277,7 @@ namespace TgAssistBot.Engines
 
 				Callback = async message =>
 				{
-					await _bot.SendTextMessageAsync(
+					await _bot!.SendTextMessageAsync(
 						message.Chat.Id,
 						"Бот находится в разработке.\n" +
 						"\nПока что бот имеет только функции, связанные с погодой\n" +
@@ -267,7 +299,7 @@ namespace TgAssistBot.Engines
 
 					if(splittedMsg.Length < 2)
 					{
-						await _bot.SendTextMessageAsync(message.Chat.Id, "Неправильное использование команды. Пример использования:\n" +
+						await _bot!.SendTextMessageAsync(message.Chat.Id, "Неправильное использование команды. Пример использования:\n" +
 							"/weathersubscribe Moscow\n" +
 							"В команде должно быть использовано название на английском. Для этого можно использовать например " +
 							"гугл переводчик.");
@@ -279,7 +311,7 @@ namespace TgAssistBot.Engines
 
 					if (!regex.IsMatch(cityName))
 					{
-						await _bot.SendTextMessageAsync(message.Chat.Id, "Название города должно быть записано английскими буквами.");
+						await _bot!.SendTextMessageAsync(message.Chat.Id, "Название города должно быть записано английскими буквами.");
 						return;
 					}
 
@@ -303,7 +335,7 @@ namespace TgAssistBot.Engines
 						}
 					});
 
-					await _bot.SendTextMessageAsync(message.Chat.Id, msgTextToSend, replyMarkup: keyboard);
+					await _bot!.SendTextMessageAsync(message.Chat.Id, msgTextToSend, replyMarkup: keyboard);
 
 				}
 			},
@@ -319,7 +351,7 @@ namespace TgAssistBot.Engines
 
 					var buttons = new List<InlineKeyboardButton>();
 
-					var relations = _repository.GetWeatherSubscribtions(r => r.Subscriber.ChatId == message.Chat.Id).ToList();
+					var relations = new Repository().GetWeatherSubscribtions(r => r.Subscriber.ChatId == message.Chat.Id).ToList();
 
 					foreach (var item in relations)
 					{
@@ -336,11 +368,11 @@ namespace TgAssistBot.Engines
 							buttons.ToArray()
 						});
 
-						await _bot.SendTextMessageAsync(message.Chat.Id, "Чтобы отписаться от города, нажми на него ниже. " +
+						await _bot!.SendTextMessageAsync(message.Chat.Id, "Чтобы отписаться от города, нажми на него ниже. " +
 							"(Это твои подписки)", replyMarkup: keyboard);
 					}
 					else
-						await _bot.SendTextMessageAsync(message.Chat.Id, "Ты еще не подписан на погоду.");
+						await _bot!.SendTextMessageAsync(message.Chat.Id, "Ты еще не подписан на погоду.");
 				}
 			},
 
@@ -350,7 +382,7 @@ namespace TgAssistBot.Engines
 
 				Callback = async message =>
 				{
-					await _bot.SendTextMessageAsync(message.Chat.Id, "Да, я работаю");
+					await _bot!.SendTextMessageAsync(message.Chat.Id, "Да, я работаю");
 				}
 			},
 
@@ -360,46 +392,57 @@ namespace TgAssistBot.Engines
 
 				Callback = async message =>
 				{
-					async Task sendErrorMsg()
-                    {
-						await _bot.SendTextMessageAsync(message.Chat.Id, "Нету такого города, либо произошла ошибка");
-					}
-
 					var trimmedText = message.Text!.Trim();
 					var splittedMsg = trimmedText.Split(" ");
 					var cityName = string.Join(' ', splittedMsg.Skip(1));
 
 					if(string.IsNullOrEmpty(cityName) || string.IsNullOrWhiteSpace(cityName) || cityName == null)
-                    {
-						var subscribtions = _repository.GetWeatherSubscribtions(e => e.Subscriber.ChatId == message.Chat.Id).ToList();
+					{
+						var subscribtions = new Repository().GetWeatherSubscribtions(e => e.Subscriber.ChatId == message.Chat.Id).ToList();
 
 						if(subscribtions.Count() <= 0 )
-                        {
-							await _bot.SendTextMessageAsync(message.Chat.Id, "Город не указан. Пример: /weather Moscow или /weather Москва");
+						{
+							await _bot!.SendTextMessageAsync(message.Chat.Id, "Город не указан. Пример: /weather Moscow или /weather Москва");
 							return;
-                        }
+						}
 
 						cityName = subscribtions[0].DbCity.Name;
-                    }
+					}
 
-					var weatherResponse = WeatherApiEngine.GetRealtimeWeather(cityName);
+					try
+					{
+						var weatherResponse = WeatherApiEngine.GetRealtimeWeather(cityName);
 
-                    if(weatherResponse == null)
-                    {
-						await sendErrorMsg();
+						if(weatherResponse == null)
+							throw new Exception();
+						else if(weatherResponse.Current == null)
+							throw new Exception();
+
+						RealtimeWeatherImageEngine.SaveImageToStream(weatherResponse, out MemoryStream stream);
+
+						await _bot!.SendPhotoAsync(message.Chat.Id, stream!);
+					}
+					catch (Exception)
+					{
+						await _bot!.SendTextMessageAsync(message.Chat.Id, "Нету такого города, либо произошла ошибка");
 						return;
-                    }
-					else if(weatherResponse.Current == null)
-                    {
-						await sendErrorMsg();
-						return;
-                    }
-
-					RealtimeWeatherImageEngine.SaveImageToStream(weatherResponse, out MemoryStream stream);
-
-					await _bot.SendPhotoAsync(message.Chat.Id, stream);
+					}
 				}
 			},
-		};
+            new BotCommandCallback {
+                Command = "uptime",
+                Description = "Узнать время бесперерывной работы бота (если он вообще работает)",
+
+                Callback = async message =>
+                {
+					var elapsed = DateTime.UtcNow - InitUtcDateTime;
+
+					var elapsedString = $"{elapsed.Days} д, {elapsed.Hours} ч, {elapsed.Minutes} мин. и {elapsed.Seconds} сек.";
+
+                    await _bot!.SendTextMessageAsync(message.Chat.Id, $"Бот работает уже {elapsedString}\n" +
+                        $"Время запуска бота: {InitUtcDateTime.ToString("dd.MM.yyyy (HH:mm:ss)")} UTC");
+                }
+            },
+        };
 	}
 }

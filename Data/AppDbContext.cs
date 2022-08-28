@@ -15,7 +15,7 @@ namespace TgAssistBot
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.UseSqlite("filename=tgAssistBot.db");
+            optionsBuilder.UseSqlite("filename=tgAssistBot.db;Cache=Shared");
             //optionsBuilder.UseInMemoryDatabase("InMem");
         }
     }

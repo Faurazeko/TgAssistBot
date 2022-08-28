@@ -25,28 +25,36 @@ namespace TgAssistBot.Engines
 
 		public static bool CityExists(string cityName)
         {
-			var places = GetPlacesByName(cityName).PlaceData;
-
-            foreach (var item in places)
+            try
             {
-				if (item.Type.ToLower() == "city")
-					return true;
-            }
+				var places = GetPlacesByName(cityName).PlaceData;
+
+				foreach (var item in places)
+				{
+					if (item.Type.ToLower() == "city")
+						return true;
+				}
+			}
+            catch (Exception) { }
 
 			return false;
         }
 
 		public static Place GetCity(string cityName)
 		{
-			var places = GetPlacesByName(cityName).PlaceData;
+            try
+            {
+				var places = GetPlacesByName(cityName).PlaceData;
 
-			foreach (var item in places)
-			{
-				if (item.Type.ToLower() == "city")
-					return item;
+				foreach (var item in places)
+				{
+					if (item.Type.ToLower() == "city")
+						return item;
+				}
 			}
+            catch (Exception) { }
 
-			return null!;
+			return null;
 		}
 
 		public static DateTimeOffset GetCurrentCityTime(string wikiDataCityId)

@@ -10,7 +10,7 @@ namespace TgAssistBot.Models.Database
         public int Id { get; set; }
 
         [DataType("datetime2")]
-        public DateTime LastDailyCheckUtcTime { get; set; } = DateTime.MinValue;
+        public DateTime LastDailyCheckUtcTime { get; private set; } = DateTime.MinValue;
 
         [DataType("datetime2")]
         public DateTime MidnightUtcTime { get; set; } = DateTime.MinValue;
@@ -29,6 +29,10 @@ namespace TgAssistBot.Models.Database
             set
             {
                 _lastWeatherSerialized = System.Text.Json.JsonSerializer.Serialize(value);
+
+                LastDailyCheckUtcTime = new DateTime(
+                    DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day,
+                    LastDailyCheckUtcTime.Hour, LastDailyCheckUtcTime.Minute, 0);
             }
         }
         public string _lastWeatherSerialized { get; private set; } = "";

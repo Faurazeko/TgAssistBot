@@ -3,7 +3,7 @@ using TgAssistBot.Models.Database;
 
 namespace TgAssistBot.Data
 {
-    class Repository
+    class Repository : IDisposable
     {
         private AppDbContext _dbContext = new AppDbContext();
 
@@ -43,5 +43,10 @@ namespace TgAssistBot.Data
 
         //Obvious.
         public bool SaveChanges() => _dbContext.SaveChanges() >= 0;
+
+        public void Dispose()
+        {
+            _dbContext.Dispose();
+        }
     }
 }

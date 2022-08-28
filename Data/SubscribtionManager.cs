@@ -5,71 +5,94 @@ namespace TgAssistBot.Data
 {
     class SubscribtionManager
     {
-        private Repository _repository = new();
 
-        public bool CreateSubscribtion(long chatId, string wikiDataCityId, string cityName)
+        public static int SubscribtionLimitPerAccount { get; private set; } = 1;
+
+        public CreateSubStatusCode CreateSubscribtion(long chatId, string wikiDataCityId, string cityName)
         {
-            var subscriber = _repository.GetSubscriber(s => s.ChatId == chatId);
-
-            if (subscriber == null)
+            using (var repository = new Repository())
             {
-                subscriber = new Subscriber() { ChatId = chatId };
-                _repository.AddSubscriber(subscriber);
-                _repository.SaveChanges();
-            }
-            else
-            {
-                var relations = _repository.GetWeatherSubscribtions(r => r.Subscriber.ChatId == chatId).ToList();
+                var subscriber = repository.GetSubscriber(s => s.ChatId == chatId);
 
-                if (relations.Count >= 1)
-                    return false;
-            }
-
-            var city = _repository.GetCity(c => c.WikiDataCityId == wikiDataCityId);
-
-            if (city == null)
-            {
-                var time = GeoDbEngine.GetCurrentCityTime(wikiDataCityId);
-
-                var midnightTime = new DateTime(time.Year, time.Month, time.Day + 1, 0, 0, 0).Add(-time.Offset);
-
-                city = new DbCity()
+                if (subscriber == null)
                 {
-                    MidnightUtcTime = midnightTime,
-                    WikiDataCityId = wikiDataCityId,
-                    LastDailyCheckUtcTime = midnightTime.AddDays(-10),
-                    UtcOffset = new TimeOnly(time.Offset.Hours, time.Offset.Minutes, 0),
-                    Name = cityName,
-                };
+                    subscriber = new Subscriber() { ChatId = chatId };
+                    repository.AddSubscriber(subscriber);
+                    repository.SaveChanges();
+                }
+                else
+                {
+                    var relations = repository.GetWeatherSubscribtions(r => r.Subscriber.ChatId == chatId).ToList();
 
-                WeatherCheckingEngine.UpdateCityWeatherIfNecessary(ref city);
+                    if (relations.Count >= SubscribtionLimitPerAccount)
+                        return CreateSubStatusCode.LimitReached;
+                }
 
-                _repository.AddCity(city);
-                _repository.SaveChanges();
+                var city = repository.GetCity(c => c.WikiDataCityId == wikiDataCityId);
+
+                if (city == null)
+                {
+                    DateTimeOffset time;
+
+                    try
+                    {
+                        time = GeoDbEngine.GetCurrentCityTime(wikiDataCityId);
+                    }
+                    catch (Exception)
+                    {
+                        return CreateSubStatusCode.InternalError;
+                    }
+
+                    var midnightTime = new DateTime(time.Year, time.Month, time.Day + 1, 0, 0, 0).Add(-time.Offset);
+
+                    city = new DbCity()
+                    {
+                        MidnightUtcTime = midnightTime,
+                        WikiDataCityId = wikiDataCityId,
+                        UtcOffset = new TimeOnly(time.Offset.Hours, time.Offset.Minutes, 0),
+                        Name = cityName,
+                    };
+
+                    WeatherCheckingEngine.UpdateCityWeatherIfNecessary(ref city);
+
+                    repository.AddCity(city);
+                    repository.SaveChanges();
+                }
+
+                var relation = repository.GetWeatherSubscribtion(s => s.SubscriberId == subscriber.Id && s.DbCityId == city.Id);
+
+                if (relation != null)
+                    return CreateSubStatusCode.AlreadyExists;
+
+                relation = new WeatherSubscribtion() { DbCityId = city.Id, SubscriberId = subscriber.Id };
+                repository.AddWeatherSubsctibtion(relation);
+                repository.SaveChanges();
+
+                return CreateSubStatusCode.Created;
             }
-
-            var relation = _repository.GetWeatherSubscribtion(s => s.SubscriberId == subscriber.Id && s.DbCityId == city.Id);
-
-            if (relation != null)
-                return true;
-
-            relation = new WeatherSubscribtion() { DbCityId = city.Id, SubscriberId = subscriber.Id };
-            _repository.AddWeatherSubsctibtion(relation);
-            _repository.SaveChanges();
-
-            return true;
         }
 
         public void DeleteSubscribtion(long chatId, string wikiDataCityId)
         {
-            var relation = _repository.GetWeatherSubscribtionsList().
-                FirstOrDefault(r => r.Subscriber.ChatId == chatId && r.DbCity.WikiDataCityId == wikiDataCityId);
+            using (var repository = new Repository())
+            {
+                var relation = repository.GetWeatherSubscribtionsList().
+                    FirstOrDefault(r => r.Subscriber.ChatId == chatId && r.DbCity.WikiDataCityId == wikiDataCityId);
 
-            if (relation == null)
-                return;
+                if (relation == null)
+                    return;
 
-            _repository.DeleteEntry(relation);
-            _repository.SaveChanges();
+                repository.DeleteEntry(relation);
+                repository.SaveChanges();
+            }
+        }
+
+        public enum CreateSubStatusCode
+        {
+            Created,
+            LimitReached,
+            InternalError,
+            AlreadyExists
         }
     }
 }

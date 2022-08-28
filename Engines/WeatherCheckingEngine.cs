@@ -1,12 +1,12 @@
 ﻿using TgAssistBot.Data;
 using TgAssistBot.Models.Database;
+using TgAssistBot.Models.OpenWeatherMap;
 
 namespace TgAssistBot.Engines
 {
     class WeatherCheckingEngine
     {
         private Thread _checkingThread;
-        private Repository _repository = new Repository();
 
         public delegate void DailyCityUpdateHadnler(string wikiDataCityId);
         public event DailyCityUpdateHadnler DailyCityNotify;
@@ -19,23 +19,26 @@ namespace TgAssistBot.Engines
 
                 while (true)
                 {
-                    var cities = _repository.GetCitiesList();
-
-                    for (int i = 0; i < cities.Count(); i++)
+                    using (var repo = new Repository())
                     {
-                        var dbCity = cities[i];
+                        var cities = repo.GetCitiesList();
 
-                        if (_repository.GetWeatherSubscribtions(s => s.DbCity.WikiDataCityId == dbCity.WikiDataCityId).Count() <= 0)
-                            continue;
-
-                        var isUpdated = UpdateCityWeatherIfNecessary(ref dbCity);
-
-                        if (isUpdated)
+                        for (int i = 0; i < cities.Count(); i++)
                         {
-                            _repository.SaveChanges();
-                            DailyCityNotify?.Invoke(dbCity.WikiDataCityId);
-                        }
+                            var dbCity = cities[i];
 
+                            if (repo.GetWeatherSubscribtions(s => s.DbCity.WikiDataCityId == dbCity.WikiDataCityId).Count() <= 0)
+                                continue;
+
+                            var isUpdated = UpdateCityWeatherIfNecessary(ref dbCity);
+
+                            if (isUpdated)
+                            {
+                                repo.SaveChanges();
+                                DailyCityNotify?.Invoke(dbCity.WikiDataCityId);
+                            }
+
+                        }
                     }
                     Thread.Sleep(600000); // 10 minutes
                 }
@@ -50,11 +53,18 @@ namespace TgAssistBot.Engines
         {
             if ((dbCity.LastDailyCheckUtcTime.AddDays(1) < DateTime.UtcNow) || (dbCity.LastWeather == null))
             {
-                dbCity.LastWeather = OpenWeatherMapEngine.GetWeather(dbCity.Name);
+                WeatherMapResponse newWeather = null;
 
-                dbCity.LastDailyCheckUtcTime = new DateTime(
-                    DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day,
-                    dbCity.LastDailyCheckUtcTime.Hour, dbCity.LastDailyCheckUtcTime.Minute, 0);
+                try
+                {
+                    newWeather = OpenWeatherMapEngine.GetWeather(dbCity.Name);
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
+
+                dbCity.LastWeather = newWeather;
 
                 return true;
             }

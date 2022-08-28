@@ -9,6 +9,8 @@ using TgAssistBot.Models.Database;
 
 namespace TgAssistBot.Engines
 {
+	// For code 500 - light rain icon = "10d". See below a full list of codes
+    //URL is http://openweathermap.org/img/wn/10d@2x.png
     static class ForecastImageEngine
     {
 		//Fonts
@@ -46,12 +48,14 @@ namespace TgAssistBot.Engines
 		static Color _backgroundColor = new Color(new Rgba32(54, 57, 63));
 		static Color _primaryColor = new Color(new Rgba32(185, 187, 190));
 
-		static public Image GenerateImage(WeatherMapResponse response, DbCity city)
+		static public Image GenerateImage(DbCity city)
 		{
-			var sectionGap = 5;
-			var sectionWidth = ((_xEnd - _xStart) / response.WeatherList.Count()) - sectionGap;
 
-			var weatherList = response.WeatherList;
+			var lastWeather = city.LastWeather;
+			var sectionGap = 5;
+			var sectionWidth = ((_xEnd - _xStart) / lastWeather.WeatherList.Count()) - sectionGap;
+
+			var weatherList = lastWeather.WeatherList;
 
 			var image = new Image<Rgba32>(_width, _height);
 
@@ -60,7 +64,7 @@ namespace TgAssistBot.Engines
 				img.Fill(_backgroundColor);
 
 				DrawCenterText(img, $"Прогноз погоды");
-				DrawCityName(img, $"[{response.City.Name}]");
+				DrawCityName(img, $"[{lastWeather.City.Name}]");
 				DrawLegend(img);
 
 				DrawMainFrame(img);
@@ -75,7 +79,7 @@ namespace TgAssistBot.Engines
 
 		static public void SaveImageAsPng(DbCity city, string path)
         {
-			var img = GenerateImage(city.LastWeather, city);
+			var img = GenerateImage(city);
 			img.SaveAsPng(path);
 		}
 
@@ -83,7 +87,7 @@ namespace TgAssistBot.Engines
         {
 			stream = new MemoryStream();
 
-			var img = GenerateImage(city.LastWeather, city);
+			var img = GenerateImage(city);
 			img.Save(stream, new SixLabors.ImageSharp.Formats.Png.PngEncoder());
 
 			stream.Position = 0;
