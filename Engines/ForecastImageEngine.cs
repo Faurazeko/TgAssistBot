@@ -235,18 +235,26 @@ namespace TgAssistBot.Engines
             foreach (var item in weatherList)
 				temps.Add(item.Main.Temp);
 
+			var minTemp = temps.Min();
 			var maxTemp = temps.Max();
-			var tempYStart = _yStart + 100;
+			var avgTemp = (minTemp + maxTemp) / 2;
+			var halfHeight = _yEnd / 2;
 
-			var index = 0;
+
+            var index = 0;
 			var points = new List<PointF>();
 
 			for (int i = _xStart; i < _xEnd; i += trueSectionWidth)
 			{
 				var temp = temps[index];
 
-				points.Add(new PointF(i, _yEnd - (_percentInPixelsHeight * (float)temp)));
-				points.Add(new PointF(i + sectionWidth, _yEnd - (_percentInPixelsHeight * (float)temp)));
+				var stabilizedTemp = temp - avgTemp;
+
+				float tempHeightPos = (float)(halfHeight - (_percentInPixelsHeight * stabilizedTemp));
+
+
+                points.Add(new PointF(i, tempHeightPos));
+				points.Add(new PointF(i + sectionWidth, tempHeightPos));
 
 				index++;
 			}

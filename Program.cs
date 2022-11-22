@@ -14,7 +14,7 @@ namespace TgAssistBot
             Console.InputEncoding = System.Text.Encoding.UTF8;
 
             #region ForecastImageEngineTest
-            //var response = JsonSerializer.Deserialize<WeatherMapResponse>(File.ReadAllText("forecastResponse.txt"));
+            //var response = JsonSerializer.Deserialize<WeatherMapResponse>(File.ReadAllText("TestResponses/forecastResponse.txt"));
             //string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
             //ForecastImageEngine.SaveImageAsPng(
