@@ -216,7 +216,20 @@ namespace TgAssistBot.Engines
                 foreach (var item in relations)
                 {
                     stream.Position = 0;
-                    _bot.SendPhotoAsync(item.Subscriber.ChatId, new InputOnlineFile(stream)).GetAwaiter().GetResult();
+
+					try
+					{
+						_bot.SendPhotoAsync(item.Subscriber.ChatId, new InputOnlineFile(stream)).GetAwaiter().GetResult();
+					}
+					catch (ApiRequestException ex)
+					{
+						if (ex.Message == "Forbidden: bot was blocked by the user")
+						{
+							_subscribtionManager.DeleteSubscribtion(item.Subscriber.ChatId, wikiDataCityId);
+							Logger.Log($"User with ChatID {item.Subscriber.ChatId} blocked the bot. User was unsubscribed.");
+						}
+						continue;
+					}
 
                     Logger.Log($"Successfully sended daily weather info to {item.Subscriber.ChatId} [{item.DbCity.Name}]");
                 }

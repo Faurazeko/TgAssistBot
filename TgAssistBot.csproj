@@ -28,6 +28,9 @@
     <None Update="configuration.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="geckodriver.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="ROBOTO.ttf">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
